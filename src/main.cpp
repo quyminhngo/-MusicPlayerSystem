@@ -70,19 +70,115 @@
 
 #include "SoftwareSerial.h"
 #include "DFRobotDFPlayerMini.h"
-#include "Wire.h"
 #include "IRremote.hpp"
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #define IR_RECEIVE_PIN 15
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define SCREEN_ADDRESS 0x3C
+#define OLED_RESET -1
 
 static const uint8_t PIN_MP3_TX = 26; // Connects to module's RX
 static const uint8_t PIN_MP3_RX = 27; // Connects to module's TX
 SoftwareSerial softwareSerial(PIN_MP3_RX, PIN_MP3_TX);
 DFRobotDFPlayerMini player;
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-int playerPause = 0;
+int isPause = 0;
+int stt = 1; // stt bai hat
+
+int page = 0; // page 0 la setting, page 1 la track
+int vol = 0;  // am luong
+int EQ = 3;   // ko biet EQ la gi
+
+// OLED function
+
+void drawSetting()
+{
+
+  display.setCursor(40, 0);
+  display.print("Setting");
+  display.setCursor(0, 20);
+  display.print("Volume");
+  display.setCursor(100, 20);
+  display.print(player.readEQ());
+  display.setCursor(0, 40);
+  display.print("EQ");
+  display.setCursor(100, 40);
+  display.print(player.readVolume());
+}
+void drawInforTrack()
+{
+  display.setCursor(30, 20);
+  display.print("Track: ");
+  display.print(player.readFileCounts());
+  display.print(" / ");
+  display.print(player.readCurrentFileNumber());
+}
+void drawNext()
+{
+  int16_t x = 91;     // X coordinate of the top-left corner
+  int16_t y = 40;     // Y coordinate of the top-left corner
+  int16_t width = 4;  // Width of the rectangle
+  int16_t height = 9; // Height of the rectangle
+  display.fillRect(x, y, width, height, SSD1306_WHITE);
+  int16_t x0 = 86, y0 = 40; // Top vertex (centered at the top)
+  int16_t x1 = 86, y1 = 48; // Bottom-left vertex
+  int16_t x2 = 91, y2 = 44; // Bottom-right vertex
+  display.fillTriangle(x0, y0, x1, y1, x2, y2, SSD1306_WHITE);
+}
+void drawPre()
+{
+  int16_t x = 33;     // X coordinate of the top-left corner
+  int16_t y = 40;     // Y coordinate of the top-left corner
+  int16_t width = 4;  // Width of the rectangle
+  int16_t height = 9; // Height of the rectangle
+  display.fillRect(x, y, width, height, SSD1306_WHITE);
+  int16_t x0 = 42, y0 = 40; // Top vertex (centered at the top)
+  int16_t x2 = 37, y1 = 48; // Bottom-left vertex
+  int16_t x1 = 42, y2 = 44; // Bottom-right vertex
+  display.fillTriangle(x0, y0, x1, y1, x2, y2, SSD1306_WHITE);
+}
+void drawPause()
+{
+  int16_t x = 67;      // X coordinate of the top-left corner
+  int16_t y = 37;      // Y coordinate of the top-left corner
+  int16_t width = 6;   // Width of the rectangle
+  int16_t height = 17; // Height of the rectangle
+  display.fillRect(x, y, width, height, SSD1306_WHITE);
+  int16_t x1 = 55;      // X coordinate of the top-left corner
+  int16_t y1 = 37;      // Y coordinate of the top-left corner
+  int16_t width1 = 6;   // Width of the rectangle
+  int16_t height1 = 17; // Height of the rectangle
+  display.fillRect(x1, y1, width1, height1, SSD1306_WHITE);
+}
+void drawRun()
+{
+  int16_t x0 = 57, y0 = 37; // Top vertex (centered at the top)
+  int16_t x1 = 57, y1 = 51; // Bottom-left vertex
+  int16_t x2 = 71, y2 = 44; // Bottom-right vertex
+  display.fillTriangle(x0, y0, x1, y1, x2, y2, SSD1306_WHITE);
+}
+void drawTrack()
+{
+  if (isPause == 0)
+  {
+    drawPause();
+  }
+  else
+  {
+    drawRun();
+  }
+  drawInforTrack();
+  drawNext();
+  drawPre();
+}
 
 void setup()
 {
+
   Serial.begin(9600);
   // Software serial initialize ...
   softwareSerial.begin(9600);
@@ -94,26 +190,71 @@ void setup()
     Serial.println("Connecting to DFPlayer Mini failed!");
   }
 
+  // OLED peripherals
+  pinMode(2, INPUT);
+  pinMode(4, INPUT);
+  pinMode(18, INPUT);
+  pinMode(19, INPUT);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+  {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;)
+      ;
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  drawSetting();
+  display.display();
+  // End OLED setup
+
   // // Start communication with DFPlayer Mini
   delay(2000); // DFPlayer take about 2s to init the system
   Serial.println("System is running...");
-  player.volume(30);  // Set volume of speaker
+  player.volume(25);  // Set volume of speaker
   player.randomAll(); // Play randomly all songs
   player.enableLoopAll();
 }
 
 void loop()
 {
-  // volumeState = analogRead(volume_pin);
-  // volume = (float) volumeState/4095;
-  // player.volume((int) (volume * 30) );
-  // Serial.println(volume * 30);
-  // delay(5000);
-  // if(nextState == 1)
-  // {
-  //   player.next();
-  //   nextState = 0;
-  // }
+  Serial.begin(9600);
+  if (digitalRead(2) == 1)
+    page = !page;
+  if (digitalRead(4) == 1)
+  {
+    isPause = !isPause;
+    if (isPause == 1)
+    {
+      player.pause();
+    }
+    else if (isPause == 0)
+      player.start();
+  }
+  if (digitalRead(18) == 1)
+  {
+    delay(100);
+    player.previous();
+  }
+  if (digitalRead(19) == 1)
+  {
+    delay(100);
+    player.next();
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  if (page == 1)
+  {
+    display.clearDisplay();
+    drawSetting();
+    // display.display();
+  }
+  else
+  {
+    display.clearDisplay();
+    drawTrack();
+  }
 
   if (IrReceiver.decode())
   {
@@ -125,35 +266,31 @@ void loop()
     {
     case 0xBB44FF00: // PREV SONG
       player.previous();
-      delay(500);
 
       break;
 
     case 0xBF40FF00: // NEXT SONG
       player.next();
-      delay(500);
+
       break;
     case 0xBC43FF00: // pause/play
 
-      playerPause = !playerPause;
-      if (playerPause == 1)
+      isPause = !isPause;
+      if (isPause == 1)
       {
         player.pause();
       }
-      else if (playerPause == 0)
-      {
+      else if (isPause == 0)
         player.start();
-      }
-      delay(500);
 
       break;
-    case 0xF807FF00: // volume +
-      player.volumeUp();
-      delay(500);
-      break;
-    case 0xEA15FF00: // volumn -
+    case 0xF807FF00: // volume -
       player.volumeDown();
-      delay(500);
+
+      break;
+    case 0xEA15FF00: // volumn +
+      player.volumeUp();
+
       break;
 
     default:
@@ -161,4 +298,6 @@ void loop()
     }
     IrReceiver.resume();
   }
+  display.display();
+  delay(100);
 }
