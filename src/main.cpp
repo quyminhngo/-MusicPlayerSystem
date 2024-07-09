@@ -74,7 +74,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#define IR_RECEIVE_PIN 15
+#define IR_RECEIVE_PIN 34
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define SCREEN_ADDRESS 0x3C
@@ -191,10 +191,10 @@ void setup()
   }
 
   // OLED peripherals
-  pinMode(2, INPUT);
-  pinMode(4, INPUT);
-  pinMode(18, INPUT);
-  pinMode(19, INPUT);
+  pinMode(35, INPUT);
+  pinMode(32, INPUT);
+  pinMode(33, INPUT);
+  pinMode(25, INPUT);
   pinMode(5, INPUT);
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
@@ -225,9 +225,9 @@ void loop()
     Serial.println(" play ");
     player.randomAll(); // Play randomly all songs
   }
-  if (digitalRead(2) == 1)
+  if (digitalRead(35) == 0)
     page = !page;
-  if (digitalRead(4) == 1)
+  if (digitalRead(32) == 0)
   {
     isPause = !isPause;
     if (isPause == 1)
@@ -237,12 +237,12 @@ void loop()
     else if (isPause == 0)
       player.start();
   }
-  if (digitalRead(18) == 1)
+  if (digitalRead(33) == 0)
   {
     delay(100);
     player.previous();
   }
-  if (digitalRead(19) == 1)
+  if (digitalRead(25) == 0)
   {
     delay(100);
     player.next();
