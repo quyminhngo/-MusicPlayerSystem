@@ -75,6 +75,12 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #define IR_RECEIVE_PIN 34
+#define NEXT_SONG_PIN 25
+#define PREV_SONG_PIN 33
+#define PAUSE_PIN 32
+#define PAGE_CONVERT_PIN 35
+#define IR_BUSY 5
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define SCREEN_ADDRESS 0x3C
@@ -87,17 +93,14 @@ DFRobotDFPlayerMini player;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 int isPause = 0;
-int stt = 1; // stt bai hat
 
 int page = 0; // page 0 la setting, page 1 la track
-int vol = 0;  // am luong
 int EQ = 3;   // ko biet EQ la gi
 
 // OLED function
 
-void drawSetting()
+void drawSetting() // page 0
 {
-
   display.setCursor(40, 0);
   display.print("Setting");
   display.setCursor(0, 20);
@@ -107,7 +110,6 @@ void drawSetting()
   display.setCursor(0, 40);
   display.print("EQ");
   display.setCursor(100, 40);
-  display.print(player.readVolume());
 }
 void drawInforTrack()
 {
@@ -191,11 +193,11 @@ void setup()
   }
 
   // OLED peripherals
-  pinMode(35, INPUT);
-  pinMode(32, INPUT);
-  pinMode(33, INPUT);
-  pinMode(25, INPUT);
-  pinMode(5, INPUT);
+  pinMode(IR_BUSY, INPUT);
+  pinMode(NEXT_SONG_PIN, INPUT);
+  pinMode(PREV_SONG_PIN, INPUT);
+  pinMode(PAGE_CONVERT_PIN, INPUT);
+  pinMode(PAUSE_PIN, INPUT);
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
     Serial.println(F("SSD1306 allocation failed"));
@@ -205,12 +207,12 @@ void setup()
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  drawSetting();
+  // drawSetting();
   display.display();
   // End OLED setup
 
   // // Start communication with DFPlayer Mini
-  delay(2000); // DFPlayer take about 2s to init the system
+  delay(3000); // DFPlayer take about 2s to init the system
   Serial.println("System is running...");
   player.volume(25); // Set volume of speaker
   player.enableDAC();
@@ -220,14 +222,15 @@ void setup()
 void loop()
 {
   Serial.begin(9600);
-  if (digitalRead(5) == 1 && isPause == 0)
+  if (digitalRead(IR_BUSY) == 1 && isPause == 0)
   {
     Serial.println(" play ");
     player.randomAll(); // Play randomly all songs
   }
-  if (digitalRead(35) == 0)
+
+  if (digitalRead(PAGE_CONVERT_PIN) == 0)
     page = !page;
-  if (digitalRead(32) == 0)
+  if (digitalRead(PAUSE_PIN) == 0)
   {
     isPause = !isPause;
     if (isPause == 1)
@@ -237,16 +240,17 @@ void loop()
     else if (isPause == 0)
       player.start();
   }
-  if (digitalRead(33) == 0)
+  if (digitalRead(PREV_SONG_PIN) == 0 && isPause == 0)
   {
     delay(100);
     player.previous();
   }
-  if (digitalRead(25) == 0)
+  if (digitalRead(NEXT_SONG_PIN) == 0 && isPause == 0)
   {
     delay(100);
     player.next();
   }
+
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -271,16 +275,14 @@ void loop()
     switch (command)
     {
     case 0xBB44FF00: // PREV SONG
-      player.previous();
-
+      if (isPause == 0)
+        player.previous();
       break;
-
     case 0xBF40FF00: // NEXT SONG
-      player.next();
-
+      if (isPause == 0)
+        player.next();
       break;
     case 0xBC43FF00: // pause/play
-
       isPause = !isPause;
       if (isPause == 1)
       {
@@ -288,15 +290,12 @@ void loop()
       }
       else if (isPause == 0)
         player.start();
-
       break;
     case 0xF807FF00: // volume -
       player.volumeDown();
-
       break;
     case 0xEA15FF00: // volumn +
       player.volumeUp();
-
       break;
     case 0xE916FF00:
       page = !page;
@@ -306,6 +305,7 @@ void loop()
     }
     IrReceiver.resume();
   }
+
   display.display();
   delay(100);
 }
