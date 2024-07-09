@@ -195,6 +195,7 @@ void setup()
   pinMode(4, INPUT);
   pinMode(18, INPUT);
   pinMode(19, INPUT);
+  pinMode(5, INPUT);
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
     Serial.println(F("SSD1306 allocation failed"));
@@ -211,14 +212,19 @@ void setup()
   // // Start communication with DFPlayer Mini
   delay(2000); // DFPlayer take about 2s to init the system
   Serial.println("System is running...");
-  player.volume(25);  // Set volume of speaker
+  player.volume(25); // Set volume of speaker
+  player.enableDAC();
   player.randomAll(); // Play randomly all songs
-  player.enableLoopAll();
 }
 
 void loop()
 {
   Serial.begin(9600);
+  if (digitalRead(5) == 1 && isPause == 0)
+  {
+    Serial.println(" play ");
+    player.randomAll(); // Play randomly all songs
+  }
   if (digitalRead(2) == 1)
     page = !page;
   if (digitalRead(4) == 1)
@@ -292,7 +298,9 @@ void loop()
       player.volumeUp();
 
       break;
-
+    case 0xE916FF00:
+      page = !page;
+      break;
     default:
       break;
     }
